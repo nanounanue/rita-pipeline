@@ -48,7 +48,7 @@ class ritaPipeline(luigi.WrapperTask):
     """
 
     def requires(self):
-        yield PySparkTask()
+        yield PythonTask()
 
 class RTask(luigi.Task):
 
@@ -59,7 +59,7 @@ class RTask(luigi.Task):
 
     def run(self):
         cmd = '''
-              docker run --rm --network rita_net -v rita_store:/rita/data  rita/test-r 
+              docker run --rm -v rita_store:/rita/data  rita/test-r 
         '''
 
         logger.debug(cmd)
@@ -79,7 +79,7 @@ class PythonTask(luigi.Task):
 
     def run(self):
         cmd = '''
-              docker run --rm --network rita_net  -v rita_store:/rita/data  rita/test-python --inputfile {} --outputfile {}
+              docker run --rm -v rita_store:/rita/data  rita/test-python --inputfile {} --outputfile {}
         '''.format(os.path.join("/rita/data", os.path.basename(self.input().path)),
                    os.path.join("/rita/data", os.path.basename(self.output().path)))
 
@@ -93,62 +93,6 @@ class PythonTask(luigi.Task):
         return luigi.LocalTarget(os.path.join(os.getcwd(), "data", "hola_mundo_desde_python.json"))
 
 
-class PySparkTask(luigi.Task):
-    def requires(self):
-        return PythonTask()
-
-    def run(self):
-        cmd = '''
-              docker run --rm --network rita_net -v rita_store:/rita/data rita/test-pyspark --master {} --input {} --output {}
-        '''.format("spark://master:7077",
-                   os.path.join("/rita/data", os.path.basename(self.input().path)),
-                   os.path.join("/rita/data", os.path.basename(self.output().path)))
-
-        logger.debug(cmd)
-
-        out = subprocess.call(cmd, shell=True)
-
-        logger.debug(out)
-
-    def output(self):
-        return luigi.LocalTarget(os.path.join(os.getcwd(), "data", "hola_mundo_desde_pyspark"))
-
-class SqoopTask(luigi.Task):
-    def requires(self):
-        return HadoopTask()
-
-    def run(self):
-        cmd = '''
-                docker run --rm --network rita_net -v rita_store:/rita/data rita/test-pyspark --master {} --input {} --output {}
-        '''
-
-        logger.debug(cmd)
-
-        out = subprocess.call(cmd, shell=True)
-
-        logger.debug(out)
-
-    def output(self):
-        return luigi.LocalTarget("hola_mundo_desde_sqoop.txt")
-
-class HadoopTask(luigi.Task):
-    def requires(self):
-        return PySparkTask()
-
-    def run(self):
-        cmd = '''
-                docker run --rm --network rita_net -v rita_store:/rita/data rita/test-pyspark --master {} --input {} --output {}
-        '''
-
-        logger.debug(cmd)
-
-        out = subprocess.call(cmd, shell=True)
-
-        logger.debug(out)
-
-
-    def output(self):
-        return luigi.LocalTarget("hola_mundo_desde_hadoop.txt")
 
 class RawData(luigi.ExternalTask):
     def output(self):
