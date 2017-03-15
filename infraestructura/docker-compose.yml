@@ -6,7 +6,7 @@ services:
     ports:                                                                              
       - "8082:8082"
     networks:
-      - dummy_net
+      - rita_net
 
 
   db:
@@ -15,7 +15,7 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - dummy_net
+      - rita_net
 
   graphdb:
     image: neo4j:3.1
@@ -23,7 +23,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     networks:
-      - dummy_net
+      - rita_net
 
 
   master:
@@ -50,9 +50,9 @@ services:
       - 8080:8080
     volumes:
       - ./conf/master:/conf
-      - dummy_store:/dummy/data
+      - rita_store:/rita/data
     networks:
-      - dummy_net
+      - rita_net
 
 
   worker:
@@ -77,19 +77,19 @@ services:
       - 8081:8081
     volumes:
       - ./conf/worker:/conf
-      - dummy_store:/dummy/data
+      - rita_store:/rita/data
     depends_on:
       - master
     networks:
-      - dummy_net
+      - rita_net
 
 
 volumes:
-  dummy_store:
+  rita_store:
     external:
-      name: dummy_store
+      name: rita_store
 
 networks:
-  dummy_net:
+  rita_net:
     external: true
 
