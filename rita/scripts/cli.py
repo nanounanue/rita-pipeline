@@ -6,7 +6,7 @@ import socket
 import sys
 import luigi
 
-import dummy.pipelines.dummy
+import rita.pipelines.rita
 
 def check_server(host, port):
     """
@@ -32,7 +32,7 @@ def main(server, port, luigi_cfg):
     Ejecuta el pipeline 
     """
 
-    luigi_args = ['DummyPipeline'
+    luigi_args = ['ritaPipeline'
                   # '--level', str(level), 
                   # '--sleep', str(sleep),
                  ]

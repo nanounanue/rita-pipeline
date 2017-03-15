@@ -4,10 +4,10 @@ Pipelines API reference
 .. automodule:: tasks
    :members:
 
-Pipeline Dummy
+Pipeline rita
 ------------------
 
-.. automodule:: tasks.dummy
+.. automodule:: tasks.rita
    :members:
    :undoc-members:
    :inherited.members:

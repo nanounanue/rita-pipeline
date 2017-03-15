@@ -1,6 +1,6 @@
 from nose.tools import *
 
-import dummy.pipelines.dummy
+import rita.pipelines.rita
 
 def setup():
     print("SETUP")
