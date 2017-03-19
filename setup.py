@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 from os import path
 
 """
-dummy-pipeline: Pipeline Dummy
+rita-pipeline: Pipeline rita
 """
 
 here = path.abspath(path.dirname(__file__))
@@ -13,9 +13,9 @@ with open(path.join(here, 'README.org'), encoding='utf-8') as f:
 
 
 setup(
-    name="dummy",
+    name="rita",
     version='0.0.1',
-    description='Pipeline Dummy',
+    description='Pipeline rita',
     long_description=long_description,
     url='https://github.com/nanounanue/pipeline-template',
     author='Adolfo De Unánue',
@@ -45,7 +45,7 @@ setup(
 
     entry_points = {
         'console_scripts' : [
-            'dummy = dummy.scripts.cli:main',
+            'rita = rita.scripts.cli:main',
 
         ]
     },

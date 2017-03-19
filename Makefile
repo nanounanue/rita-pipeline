@@ -143,7 +143,7 @@ sync_from_s3: ##@data Sincroniza los datos desde AWS S3
 ########################################
 
 run:       ##@proyecto Ejecuta el pipeline de datos
-	@LUIGI_CONFIG_PATH=./${PROJECT_NAME}/pipelines/luigi.cfg ${PROJECT_NAME} --server localhost --port 8082
+	$(MAKE) --directory=$(PROJECT_NAME) run
 
 setup: build install ##@proyecto Crea las imágenes del pipeline e instala el pipeline como paquete en el PYTHONPATH
 
@@ -155,8 +155,7 @@ set_project_name: ##@proyecto Renombra el proyecto de dpa_test a PROJECT_NAME (r
   ## Basado en http://stackoverflow.com/a/39284776/754176
 	@ag [dD]ummy -l0 | xargs -0 sed -i  "s/[dD]ummy/${PROJECT_NAME}/g"
   ## Renombrar la carpeta del proyecto
-	@if [ -d dummy ] ; \
-	 then ; \
+	@if [ -d dummy ] ; then \
      mv dummy/pipelines/dummy.py dummy/pipelines/$(PROJECT_NAME).py ; \
      mv dummy $(PROJECT_NAME) ; \
   fi;
