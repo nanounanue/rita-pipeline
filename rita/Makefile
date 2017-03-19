@@ -1,9 +1,12 @@
 SHELL := /bin/bash 
 PROJECT_NAME:=$(shell cat ../.project-name)
 DATA_DIRECTORY:=$(CURDIR)/../data
-IMAGES = test-r test-python test-pyspark
+IMAGES = download-rita
 
 build: .built .built-local-storage
+
+run:
+	@LUIGI_CONFIG_PATH=./pipelines/luigi.cfg $(PROJECT_NAME) --server localhost --port 8082
 
 .built:
 	@for image in $(IMAGES) ; do \
