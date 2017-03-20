@@ -50,13 +50,25 @@ class ritaPipeline(luigi.WrapperTask):
     Task principal para el pipeline 
     """
 
+    start_year=luigi.IntParameter()
+
     def requires(self):
-        fecha = datetime.date.today() + datetime.timedelta(days=-90)
+        today = datetime.date.today() + datetime.timedelta(days=-90)
 
-        year = fecha.year
-        month = fecha.month
+        max_year = today.year
+        max_month = today.month
 
-        yield DownloadRITA(year=2015, month=2)
+        years = range(self.start_year, max_year)
+
+        logger.info("Descargando datos de los años {}".format(years))
+
+        for año in years:
+            if año != max_year:
+                months = range(1,13)
+            else:
+                month = range(1, max_month+1)
+            for mes in months:
+                yield DownloadRITA(year=año, month=mes)
 
 class DownloadRITA(DockerTask):
     year = luigi.IntParameter()

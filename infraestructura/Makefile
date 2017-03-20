@@ -4,7 +4,7 @@
 ##            Variables               ##
 ########################################
 SHELL := /bin/bash 
-PROJECT_NAME:=dummy
+PROJECT_NAME:=$(shell cat ../.project-name)
 DATA_DIRECTORY:=$(CURDIR)/../data
 
 IMAGES = base python r java luigi-server luigi-worker spark-client hadoop-client
@@ -37,7 +37,6 @@ create: .data_built .network_built .images_built
 	@touch .images_built
 
 .data_built:
-	echo ${DATA_DIRECTORY}
 	[ -d ${DATA_DIRECTORY} ] && docker volume create --name ${PROJECT_NAME}_store --opt type=none --opt device=${DATA_DIRECTORY} --opt o=bind
 	@touch .data_built
 

@@ -25,12 +25,19 @@ def check_server(host, port):
 @click.option('--server', help='URL donde se encuentra el luigi-master', default='localhost')
 @click.option('--port', help='Puerto donde está escuchando el luigi-master', default=8082)
 @click.option('--luigi_cfg', help='Path al archivo de configuración de Luigi', type=click.Path())
-def main(server, port, luigi_cfg):
+@click.option('--workers', help='Número de workers en paralelo', type=click.INT, default=4)
+def main(server, port, luigi_cfg, workers):
     """
     Ejecuta el pipeline 
     """
 
-    luigi_args = ['ritaPipeline']
+    luigi_args = [
+                  '--scheduler-host', str(server),
+                  '--scheduler-port', str(port),
+                  'ritaPipeline',
+                  '--workers', str(workers),
+        
+    ]
 
     ## Ejecuta luigi con el local scheduler si no hay servidor
     if not check_server(server, port):

@@ -6,7 +6,7 @@ IMAGES = download-rita
 build: .built .built-local-storage
 
 run:
-	@LUIGI_CONFIG_PATH=./pipelines/luigi.cfg $(PROJECT_NAME) --server localhost --port 8082
+	@LUIGI_CONFIG_PATH=./pipelines/luigi.cfg $(PROJECT_NAME) --server 0.0.0.0 --port 8082
 
 .built:
 	@for image in $(IMAGES) ; do \
