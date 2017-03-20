@@ -1,7 +1,20 @@
 # coding: utf-8
 
+import os
+
+import subprocess
+
 import luigi
 import luigi.s3
+
+## Logging
+import rita.config_ini
+
+import logging
+
+logger = logging.getLogger("rita.pipeline")
+
+
 
 class DockerTask(luigi.Task):
     """
