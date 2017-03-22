@@ -2,4 +2,6 @@ luigi
 Click
 python-dotenv
 boto
-boto3 
+boto3
+beautifulsoup4 
+lxml
