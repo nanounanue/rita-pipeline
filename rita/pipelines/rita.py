@@ -13,16 +13,29 @@ import os
 
 import subprocess
 
-import pandas as pd
+from pathlib import Path
+
+import boto3
+import zipfile
+import io
 
 import csv
-
 import datetime
 
 import luigi
 import luigi.s3
 
+import pandas as pd
+
 import sqlalchemy
+
+from contextlib import closing
+
+import requests
+
+import re
+
+from bs4 import BeautifulSoup
 
 ## Variables de ambiente
 from dotenv import load_dotenv, find_dotenv
@@ -49,7 +62,11 @@ class ritaPipeline(luigi.WrapperTask):
     """
     Task principal para el pipeline 
     """
+    def requires(self):
+        return DownloadCatalogs()
+        #return ExtractColumns(year=2015, month=1)
 
+class DownloadAllData(luigi.WrapperTask):
     start_year=luigi.IntParameter()
 
     def requires(self):
@@ -69,6 +86,91 @@ class ritaPipeline(luigi.WrapperTask):
                 month = range(1, max_month+1)
             for mes in months:
                 yield DownloadRITA(year=año, month=mes)
+
+
+class DownloadCatalogs(luigi.WrapperTask):
+    """
+    """
+    def requires(self):
+        baseurl = "https://www.transtats.bts.gov"
+        url = "https://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236"
+        page = requests.get(url)
+
+        soup = BeautifulSoup(page.content, "lxml")
+        for link in soup.find_all('a', href=re.compile('Download_Lookup')):
+            catalog_name = link.get('href').split('=L_')[-1]
+            catalog_url = '{}/{}'.format(baseurl, link.get('href'))
+            yield DownloadCatalog(catalog_name=catalog_name, catalog_url=catalog_url)
+
+class DownloadCatalog(luigi.Task):
+    """
+    """
+    catalog_url = luigi.Parameter()
+    catalog_name = luigi.Parameter()
+
+    root_path =  luigi.Parameter()
+
+    def run(self):
+        logger.debug("Guardando en {} el catálogo {}".format(self.output().path, self.catalog_name))
+
+        with closing(requests.get(self.catalog_url, stream=True)) as response, self.output().open('w') as output_file:
+            for row in response.iter_lines():
+                output_file.write(row.decode('utf-8'))
+
+    def output(self):
+        output_path = '{}/catalogs/{}.csv'.format(self.root_path,
+                                                  self.catalog_name)
+        return luigi.s3.S3Target(path=output_path)
+
+class ExtractColumns(luigi.Task):
+    """
+    """
+
+    task_name = "extract-columns"
+
+    year = luigi.IntParameter()
+    month = luigi.IntParameter()
+
+    root_path = luigi.Parameter()
+    bucket = luigi.Parameter()
+    etl_path = luigi.Parameter()
+
+    def requires(self):
+        return DownloadRITA(year=self.year, month=self.month)
+
+    def run(self):
+
+        s3 = boto3.resource('s3')
+
+        bucket = s3.Bucket(self.bucket)
+
+        input_path = Path(self.input().path)
+
+        obj = bucket.Object(str(input_path.relative_to('s3://{}'.format(self.bucket))))
+
+        df = None
+
+        with io.BytesIO(obj.get()["Body"].read()) as input_file:
+            input_file.seek(0)
+            with zipfile.ZipFile(input_file, mode='r') as zip_file:
+                for subfile in zip_file.namelist():
+                    with zip_file.open(subfile) as file:
+                        df = pd.read_csv(file)
+
+        with self.output().open('w') as output_file:
+            output_file.write(df.loc[:, 'YEAR':'DIV_AIRPORT_LANDINGS'].to_csv(None,
+                                                                              sep="|",
+                                                                              header=True,
+                                                                              index=False,
+                                                                              encoding="utf-8",
+                                                                              quoting=csv.QUOTE_ALL))
+
+    def output(self):
+        return luigi.s3.S3Target('{}/{}/{}/YEAR={}/{}.psv'.format(self.root_path,
+                                                                  self.etl_path,
+                                                                  self.task_name,
+                                                                  self.year,
+                                                                  str(self.month).zfill(2)))
 
 class DownloadRITA(DockerTask):
     year = luigi.IntParameter()
