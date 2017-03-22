@@ -56,17 +56,61 @@ logger = logging.getLogger("rita.pipeline")
 import rita.pipelines.utils
 
 import rita.pipelines.common
-from rita.pipelines.common.tasks import DockerTask, SmartExternalTask
+from rita.pipelines.common.tasks import DockerTask
 
 class ritaPipeline(luigi.WrapperTask):
     """
     Task principal para el pipeline 
     """
-    def requires(self):
-        return DownloadCatalogs()
-        #return ExtractColumns(year=2015, month=1)
 
-class DownloadAllData(luigi.WrapperTask):
+    def requires(self):
+        yield DownloadRITACatalogs()
+        yield DownloadRITAData()
+
+
+class DownloadRITACatalogs(luigi.WrapperTask):
+    """
+    """
+
+    def requires(self):
+        baseurl = "https://www.transtats.bts.gov"
+        url = "https://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236"
+        page = requests.get(url)
+
+        soup = BeautifulSoup(page.content, "lxml")
+        for link in soup.find_all('a', href=re.compile('Download_Lookup')):
+            catalog_name = link.get('href').split('=L_')[-1]
+            catalog_url = '{}/{}'.format(baseurl, link.get('href'))
+            yield DownloadCatalog(catalog_name=catalog_name, catalog_url=catalog_url)
+
+class DownloadCatalog(luigi.Task):
+    """
+    """
+
+    catalog_url = luigi.Parameter()
+    catalog_name = luigi.Parameter()
+
+    root_path =  luigi.Parameter()
+
+    def run(self):
+        logger.debug("Guardando en {} el catálogo {}".format(self.output().path, self.catalog_name))
+
+        with closing(requests.get(self.catalog_url, stream= True)) as response, \
+             self.output().open('w') as output_file:
+            for chunk in response.iter_lines(chunk_size=1024*8):
+                if chunk:
+                    output_file.write(chunk.decode('utf-8') + '\n')
+
+
+    def output(self):
+        output_path = '{}/catalogs/{}.csv'.format(self.root_path,
+                                                  self.catalog_name)
+        return luigi.s3.S3Target(path=output_path)
+
+
+class DownloadRITAData(luigi.WrapperTask):
+    """
+    """
     start_year=luigi.IntParameter()
 
     def requires(self):
@@ -85,42 +129,31 @@ class DownloadAllData(luigi.WrapperTask):
             else:
                 month = range(1, max_month+1)
             for mes in months:
-                yield DownloadRITA(year=año, month=mes)
+                yield DownloadRITAMonthlyData(year=año, month=mes)
 
 
-class DownloadCatalogs(luigi.WrapperTask):
+class DownloadRITAMonthlyData(DockerTask):
     """
     """
-    def requires(self):
-        baseurl = "https://www.transtats.bts.gov"
-        url = "https://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236"
-        page = requests.get(url)
+    year = luigi.IntParameter()
+    month = luigi.IntParameter()
 
-        soup = BeautifulSoup(page.content, "lxml")
-        for link in soup.find_all('a', href=re.compile('Download_Lookup')):
-            catalog_name = link.get('href').split('=L_')[-1]
-            catalog_url = '{}/{}'.format(baseurl, link.get('href'))
-            yield DownloadCatalog(catalog_name=catalog_name, catalog_url=catalog_url)
+    root_path = luigi.Parameter()
+    raw_path = luigi.Parameter()
 
-class DownloadCatalog(luigi.Task):
-    """
-    """
-    catalog_url = luigi.Parameter()
-    catalog_name = luigi.Parameter()
-
-    root_path =  luigi.Parameter()
-
-    def run(self):
-        logger.debug("Guardando en {} el catálogo {}".format(self.output().path, self.catalog_name))
-
-        with closing(requests.get(self.catalog_url, stream=True)) as response, self.output().open('w') as output_file:
-            for row in response.iter_lines():
-                output_file.write(row.decode('utf-8'))
+    @property
+    def cmd(self):
+        return '''
+               docker run --rm --env AWS_ACCESS_KEY_ID={} --env AWS_SECRET_ACCESS_KEY={} rita/download-rita --year {} --month {} --data_path {}/{} 
+        '''.format(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, self.year, self.month, self.root_path, self.raw_path)
 
     def output(self):
-        output_path = '{}/catalogs/{}.csv'.format(self.root_path,
-                                                  self.catalog_name)
-        return luigi.s3.S3Target(path=output_path)
+        return luigi.s3.S3Target(path='{}/{}/{}-{}.zip'.format(self.root_path,
+                                                               self.raw_path,
+                                                               str(self.month).zfill(2),
+                                                               self.year))
+
+
 
 class ExtractColumns(luigi.Task):
     """
@@ -172,27 +205,6 @@ class ExtractColumns(luigi.Task):
                                                                   self.year,
                                                                   str(self.month).zfill(2)))
 
-class DownloadRITA(DockerTask):
-    year = luigi.IntParameter()
-    month = luigi.IntParameter()
-
-    root_path = luigi.Parameter()
-    raw_path = luigi.Parameter()
-
-    @property
-    def cmd(self):
-        return '''
-               docker run --rm --env AWS_ACCESS_KEY_ID={} --env AWS_SECRET_ACCESS_KEY={} rita/download-rita --year {} --month {} --data_path {}/{} 
-        '''.format(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, self.year, self.month, self.root_path, self.raw_path)
-
-    def output(self):
-        return RITAData(path='{}/{}/{}-{}.zip'.format(self.root_path,
-                                                      self.raw_path,
-                                                      str(self.month).zfill(2),
-                                                      self.year))
-
-class RITAData(SmartExternalTask):
-    pass
 
 class RTask(luigi.Task):
 
